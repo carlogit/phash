@@ -1,3 +1,2 @@
 # phash
-Wanted to learn Go, so trying to create something that I need:
-Go Library to calculate phash for an image(JPEG).
+A simple Go Library to calculate a phash string for a JPEG image.

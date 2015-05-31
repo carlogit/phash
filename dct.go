@@ -1,66 +1,60 @@
 package phash
 
 import (
-	"image"
 	"math"
 )
 
-var c []float64 = initCoefficients()
+type dctPoint struct {
+	xMax, yMax int
+	xScales, yScales [2]float64
+}
 
-func initCoefficients() []float64 {
-	c := make([]float64, size)
+func (point *dctPoint) initializeScaleFactors() {
+	point.xScales = [2]float64{ 1.0 / math.Sqrt(float64(point.xMax)), math.Sqrt(2.0 / float64(point.xMax))}
+	point.yScales = [2]float64 { 1.0 / math.Sqrt(float64(point.yMax)), math.Sqrt(2.0 / float64(point.yMax))}
+}
 
-	for i := 1; i < size; i++ {
-		c[i] = 1
+func (point *dctPoint) calculateValue(imageData [][]float64, x, y int) float64 {
+	sum := float64(0.0)
+	for i := 0; i < point.xMax; i++ {
+		for j := 0; j < point.yMax; j++ {
+			imageValue := float64(imageData[i][j])
+			firstCosine := math.Cos(float64((1 + (2 * i)) * x) * math.Pi / float64(2 * point.xMax))
+			secondCosine := math.Cos(float64((1 + (2 * j)) * y) * math.Pi / float64(2 * point.yMax))
+			sum += (imageValue * firstCosine * secondCosine)
+		}
 	}
+	return sum * point.getScaleFactor(x, y)
+}
 
-	c[0] = 1 / math.Sqrt(2.0)
+func (point *dctPoint) getScaleFactor(x, y int) float64 {
+	xScaleFactor := point.xScales[1]
+	if x == 0 {
+		xScaleFactor = point.xScales[0]
+	}
+	yScaleFactor := point.yScales[1]
+	if y == 0 {
+		yScaleFactor = point.yScales[0]
+	}
 	
-	return c
+	return xScaleFactor * yScaleFactor
 }
+	
+// getDCTMatrix Generates a DCT matrix from a given matrix.
+// This is done using the Discrete Cosine Transformation (DCT) type-II algorithm.
+func getDCTMatrix(matrix [][]float64) [][]float64 {
+	xMax := len(matrix)
+	yMax := len(matrix[0])
 
-func getInitDCTTable(img image.Image) [][]float64 {
-	xSize := img.Bounds().Max.X
-	ySize := img.Bounds().Max.Y
-
-	vals := make([][]float64, xSize)
-
-	for x := 0; x < xSize; x++ {
-		vals[x] = make([]float64, ySize)
-		for y := 0; y < ySize; y++ {
-			vals[x][y] = getBlue(img, x, y)
+	dctPoint := &dctPoint{xMax:xMax, yMax:yMax}
+	dctPoint.initializeScaleFactors()
+	dctMatrix := make([][]float64, xMax)
+	for x := 0; x < xMax; x++ {
+		dctMatrix[x] = make([]float64, yMax)
+		for y := 0; y < yMax; y++ {
+			dctMatrix[x][y] = dctPoint.calculateValue(matrix, x, y)
 		}
 	}
 
-	return vals
-}
-
-func getBlue(img image.Image, x int, y int) float64 {
-	_, _, b, _ := img.At(x, y).RGBA()
-	return float64(b & 0xff)
-}
-
-func getDCTValues(img image.Image) [][]float64 {
-	vals := getInitDCTTable(img)
-
-	xSize := img.Bounds().Max.X
-	ySize := img.Bounds().Max.Y
-
-	F := make([][]float64, xSize)
-	for u := 0; u < xSize; u++ {
-		F[u] = make([]float64, ySize)
-		for v := 0; v < ySize; v++ {
-			sum := float64(0.0)
-			for i := 0; i < xSize; i++ {
-				for j := 0; j < ySize; j++ {
-					valor := math.Cos((2.0*float64(i)+1.0)/(2.0*float64(xSize))*float64(u)*math.Pi) * math.Cos((2.0*float64(j)+1.0)/(2.0*float64(ySize))*float64(v)*math.Pi) * (vals[i][j])
-					sum += valor
-				}
-			}
-			sum *= ((c[u] * c[v]) / 4.0)
-			F[u][v] = sum
-		}
-	}
-
-	return F
+	return dctMatrix
 }
