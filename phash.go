@@ -1,3 +1,5 @@
+// Package phash computes a phash string for a JPEG image and retrieves
+// the hamming distance between two phash strings.
 package phash
 
 import (
